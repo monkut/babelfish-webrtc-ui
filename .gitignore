@@ -1,0 +1,16 @@
+.DS_Store
+/node_modules/
+coverage
+
+# React Router
+/.react-router/
+/build/
+
+.idea
+mise.toml
+
+# test cache
+tests/__screenshots__/
+
+# circular symlink
+babelfish-webrtc-ui
