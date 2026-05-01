@@ -31,7 +31,10 @@
       "**",
       "!node_modules/**",
       "!dist/**",
+      "!build/**",
       "!coverage/**",
+      "!.react-router/**",
+      "!.claude/**",
       "!**/*.min.js",
       "!pnpm-lock.yaml"
     ]
