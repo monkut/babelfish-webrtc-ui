@@ -8,7 +8,7 @@ interface WebRTCConfig {
   onRemoteAudioStream?: (stream: MediaStream) => void;
 }
 
-const DEFAULT_SIGNALING_URL = "http://localhost:8080/offer";
+const DEFAULT_SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL || "http://localhost:8080/offer";
 
 function waitForIceGathering(pc: RTCPeerConnection, timeoutMs = 2000): Promise<void> {
   if (pc.iceGatheringState === "complete") return Promise.resolve();

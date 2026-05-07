@@ -6,6 +6,11 @@ coverage
 /.react-router/
 /build/
 
+# Local env overrides — committed example lives at .env.example
+.env
+.env.local
+.env.*.local
+
 .idea
 mise.toml
 
