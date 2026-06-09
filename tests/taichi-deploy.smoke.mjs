@@ -5,17 +5,19 @@
 //   1. Page loads (SPA HTML served by Caddy)
 //   2. /api/health returns 200 with {"status":"healthy",...}
 //   3. /api/scenarios returns 200 with a scenarios list (the picker source)
-//   4. SPA's bundled bundle code references the expected signaling URL
+//   4. SPA bundle constructs the same-origin signaling path (/api/offer)
 //
 // getUserMedia / WebRTC handshake is intentionally not exercised here —
-// browsers refuse mic access on plain HTTP origins, and TAICHI MVP is
-// HTTP-only. That test belongs in Phase 5 once HTTPS is back (or with a
-// browser launched using --unsafely-treat-insecure-origin-as-secure).
+// browsers refuse mic access on plain HTTP origins. Over the HTTPS listener
+// (https://192.168.1.25, internal CA) the mic works; that round-trip is
+// verified separately against a secure origin.
 
 import { chromium } from "playwright";
 
 const TAICHI_URL = process.env.TAICHI_URL || "http://192.168.1.25:8080";
-const EXPECTED_SIGNALING = `${TAICHI_URL}/api/offer`;
+// The SPA is same-origin: it builds the signaling URL from window.location at
+// runtime, so the bundle carries the relative "/api/offer" path, not a host.
+const EXPECTED_SIGNALING = "/api/offer";
 
 let exitCode = 0;
 function pass(name) {

@@ -102,6 +102,14 @@ async function startSession(deps: SessionDeps, scenarioSlug?: string): Promise<v
   deps.setConnectionState("connecting");
   deps.setError(null);
   try {
+    // Browsers expose `navigator.mediaDevices` only in a secure context
+    // (HTTPS or localhost). Over plain HTTP it is undefined — surface a clear
+    // reason instead of a cryptic "reading 'getUserMedia'" TypeError.
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error(
+        "Microphone needs a secure context. Open this page over HTTPS (https://192.168.1.25) rather than http.",
+      );
+    }
     // Token before mic, so an auth failure never leaves a hot capture running.
     const token = await getAccessToken();
     const stream = await navigator.mediaDevices.getUserMedia({
