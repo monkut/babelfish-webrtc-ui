@@ -4,10 +4,11 @@ A WebRTC-based voice interface for the Babelfish backend. This SPA connects to t
 
 ## Features
 
-- Single-page application with connect/disconnect button
-- WebRTC audio streaming to babelfish-backend
+- Single-page application with a scenario picker + connect/disconnect button
+- Pick which scenario to converse with before connecting (`GET /scenarios`)
+- JWT auth: exchanges client credentials at `POST /token`, sends the bearer token on `POST /offer`
+- WebRTC audio streaming to babelfish-backend; receives TTS audio responses
 - Real-time audio visualization while connected
-- Receives TTS audio responses from the backend
 
 ## Prerequisites
 
@@ -51,11 +52,17 @@ The app will be available at `http://localhost:5173`.
 ## Usage
 
 1. Open `http://localhost:5173` in your browser
-2. Click the green **Connect** button
-3. Allow microphone access when prompted
-4. The button turns red and audio visualization appears
-5. Speak into your microphone - the backend will transcribe and respond
-6. Click the red **Disconnect** button to end the session
+2. Pick a **scenario** from the dropdown (loaded from the backend's `GET /scenarios`)
+3. Click the green **Connect** button (disabled until a scenario is selected)
+4. Allow microphone access when prompted
+5. The button turns red and audio visualization appears
+6. Speak into your microphone - the backend will transcribe and respond
+7. Click the red **Disconnect** button to end the session
+
+> **Microphone requires a secure context.** Browsers expose the mic only over
+> HTTPS or `localhost`. On a plain-HTTP LAN origin (e.g. `http://192.168.1.25:8080`)
+> Connect fails with a "secure context" message — use the HTTPS origin instead
+> (see [Deployment](#deployment-taichi-on-prem)).
 
 ## Development
 
@@ -142,14 +149,54 @@ babelfish-webrtc-ui/
 
 ## Configuration
 
-### WebRTC Server URL
+All config is build-time `VITE_*` env (Vite inlines it into the bundle). Copy
+`.env.example` to `.env` and set values for the target. See `.env.example` for
+the full list.
 
-By default, the app connects to `http://localhost:8080/offer`. To change this, modify the `DEFAULT_SIGNALING_URL` in `app/lib/webrtc/useWebRTC.ts` or pass a custom URL to the hook:
+| Var | Purpose | Default |
+|-----|---------|---------|
+| `VITE_SIGNALING_URL` | Full `/offer` URL. **Leave unset for same-origin deploys** (Caddy serves the SPA and `/api` on one host); the app then derives `/api/offer` from `window.location.origin`. Set it only for dev, where the SPA (`:5173`) and backend (`:8080`) are different origins. | same-origin `/api/offer`; dev fallback `http://localhost:8080/offer` |
+| `VITE_CLIENT_ID` / `VITE_CLIENT_SECRET` | `BabelfishClient` credentials for the `POST /token` exchange. Provisioned with the backend's `create_client` command. Baked into the bundle — acceptable for an internal LAN tool. | — (token fails if unset) |
+| `VITE_BASE_URL` | Base URL for the OpenAPI-generated client (`custom-fetch.ts`). | `http://localhost:8080` |
 
-```typescript
-const { connect, disconnect } = useWebRTC({
-  signalingUrl: "http://your-server:8080/offer"
-});
+`/token` and `/scenarios` are derived from `VITE_SIGNALING_URL` (strip the trailing `/offer`), so one variable drives every endpoint.
+
+```bash
+# Dev (SPA on :5173, backend on :8080):
+VITE_SIGNALING_URL=http://localhost:8080/offer
+VITE_CLIENT_ID=dev-client
+VITE_CLIENT_SECRET=...
+
+# TAICHI on-prem (same-origin — VITE_SIGNALING_URL omitted on purpose):
+VITE_CLIENT_ID=babelfish-spa
+VITE_CLIENT_SECRET=...
+```
+
+## Deployment (TAICHI on-prem)
+
+The SPA is served by the backend's Caddy from `spa-dist/`. Caddy exposes two
+listeners on the same origin model: `:8080` HTTP (picker works, mic does not)
+and `:443` HTTPS via an internal CA (mic works). Build on the dev box and rsync:
+
+```bash
+cd ~/PycharmProjects/babelfish-webrtc-ui
+# .env with VITE_CLIENT_ID/SECRET only (same-origin: no VITE_SIGNALING_URL)
+pnpm build
+# Source is build/client/ (React Router 7 SPA output), NOT build/.
+rsync -a --delete build/client/ shane.cousins@192.168.1.25:~/babelfish/backend/spa-dist/
+ssh shane.cousins@192.168.1.25 'cd ~/babelfish/backend && docker compose restart caddy'
+pnpm smoke:taichi
+```
+
+**To use the microphone, browse `https://192.168.1.25`** and trust Caddy's
+internal root CA once per device (a page click-through is not enough — the
+SPA's `fetch` calls to the HTTPS API would otherwise fail the TLS handshake):
+
+```bash
+ssh shane.cousins@192.168.1.25 'docker exec ford-caddy cat /data/caddy/pki/authorities/local/root.crt' > caddy-root.crt
+# Linux (Chrome/Chromium NSS store):
+certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n "Caddy TAICHI" -i caddy-root.crt
+# macOS: Keychain → trust "Always". Windows: import to Trusted Root CAs.
 ```
 
 ## Troubleshooting
