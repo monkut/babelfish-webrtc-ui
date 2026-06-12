@@ -7,7 +7,6 @@ App to interface with the babelfish-backend webrtc app
 - `/app`: Contains root.tsx and routes.ts routes
 - `/app/lib`: Utility functions and helper modules.
 - `/app/routes`: 
-- `/app/welcome`
 - `/docs`: For related documentation
 - `/public`: Static assets like images and fonts.
 - `/tests`: Contains Application testcases
@@ -39,7 +38,6 @@ App to interface with the babelfish-backend webrtc app
 Available commands:
 
 - `pnpm pre_install`: Install the playwright browser.
-- `pnpm generate_api_client`: genearate the API client.
 - `pnpm dev`: Start the development server (with HMR valid).
 - `pnpm build`: build for production use.
 - `pnpm start`: Start the built server.

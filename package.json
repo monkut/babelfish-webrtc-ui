@@ -4,7 +4,6 @@
   "type": "module",
   "scripts": {
     "pre_install": "pnpm exec playwright install",
-    "generate_api_client": "npx orval --config ./orval.config.cjs",
     "build": "react-router build",
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",

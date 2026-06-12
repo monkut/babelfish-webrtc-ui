@@ -116,7 +116,8 @@ babelfish-webrtc-ui/
 │   │   ├── audio/           # Audio utilities
 │   │   │   └── useAudioAnalyzer.ts
 │   │   ├── webrtc/          # WebRTC connection management
-│   │   │   └── useWebRTC.ts
+│   │   │   ├── session.ts   # Framework-free session (token, mic, offer/answer)
+│   │   │   └── useWebRTC.ts # React wrapper: state + lifecycle
 │   │   └── api/             # API utilities
 │   ├── routes/              # Route components
 │   │   └── home.tsx
@@ -157,7 +158,6 @@ the full list.
 |-----|---------|---------|
 | `VITE_SIGNALING_URL` | Full `/offer` URL. **Leave unset for same-origin deploys** (Caddy serves the SPA and `/api` on one host); the app then derives `/api/offer` from `window.location.origin`. Set it only for dev, where the SPA (`:5173`) and backend (`:8080`) are different origins. | same-origin `/api/offer`; dev fallback `http://localhost:8080/offer` |
 | `VITE_CLIENT_ID` / `VITE_CLIENT_SECRET` | `BabelfishClient` credentials for the `POST /token` exchange. Provisioned with the backend's `create_client` command. Baked into the bundle — acceptable for an internal LAN tool. | — (token fails if unset) |
-| `VITE_BASE_URL` | Base URL for the OpenAPI-generated client (`custom-fetch.ts`). | `http://localhost:8080` |
 
 `/token` and `/scenarios` are derived from `VITE_SIGNALING_URL` (strip the trailing `/offer`), so one variable drives every endpoint.
 
