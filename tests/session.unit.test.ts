@@ -4,6 +4,11 @@ import type { WebRTCSessionEvents } from "../app/lib/webrtc/session";
 
 const ANSWER = { session_id: "sess-1", sdp: "answer-sdp" };
 
+class FakeDataChannel {
+  onmessage: ((e: { data: unknown }) => void) | null = null;
+  constructor(readonly label: string) {}
+}
+
 class FakePeerConnection {
   static instances: FakePeerConnection[] = [];
   iceGatheringState: RTCIceGatheringState = "complete";
@@ -12,6 +17,7 @@ class FakePeerConnection {
   remoteDescription: { sdp: string; type: string } | null = null;
   ontrack: ((e: { streams: MediaStream[] }) => void) | null = null;
   onconnectionstatechange: (() => void) | null = null;
+  ondatachannel: ((e: { channel: FakeDataChannel }) => void) | null = null;
   addedTracks: MediaStreamTrack[] = [];
   closed = false;
 
@@ -96,6 +102,7 @@ describe("WebRTCSession", () => {
       onLocalStream: vi.fn(),
       onRemoteStream: vi.fn(),
       onConnectionStateChange: vi.fn(),
+      onTranscript: vi.fn(),
     };
     const { WebRTCSession } = await importSession();
     const session = new WebRTCSession(TEST_SIGNALING_URL, events);
@@ -129,6 +136,43 @@ describe("WebRTCSession", () => {
     pc.connectionState = "connected";
     pc.onconnectionstatechange?.();
     expect(events.onConnectionStateChange).toHaveBeenCalledExactlyOnceWith("connected");
+  });
+
+  test("transcript DataChannel events reach onTranscript; other labels and junk are ignored", async () => {
+    stubFetchRoutes();
+    const { stream } = makeFakeMic();
+    vi.stubGlobal("navigator", { mediaDevices: { getUserMedia: vi.fn(async () => stream) } });
+    const onTranscript = vi.fn();
+    const { WebRTCSession } = await importSession();
+    const session = new WebRTCSession(TEST_SIGNALING_URL, { onTranscript });
+    await session.start("demo-scenario");
+    const pc = FakePeerConnection.instances[0];
+
+    // Backend-initiated channels arrive via ondatachannel.
+    const transcript = new FakeDataChannel("transcript");
+    pc.ondatachannel?.({ channel: transcript });
+    const actions = new FakeDataChannel("screener-actions");
+    pc.ondatachannel?.({ channel: actions });
+
+    transcript.onmessage?.({
+      data: JSON.stringify({ role: "caller", text: "山田さんをお願いします" }),
+    });
+    transcript.onmessage?.({
+      data: JSON.stringify({ role: "responder", text: "お電話ありがとうございます。" }),
+    });
+    transcript.onmessage?.({ data: "not json" }); // malformed frame is dropped
+    transcript.onmessage?.({ data: JSON.stringify({ role: "operator", text: "x" }) }); // unknown role dropped
+    expect(actions.onmessage).toBeNull(); // non-transcript labels get no handler
+
+    expect(onTranscript).toHaveBeenCalledTimes(2);
+    expect(onTranscript).toHaveBeenNthCalledWith(1, {
+      role: "caller",
+      text: "山田さんをお願いします",
+    });
+    expect(onTranscript).toHaveBeenNthCalledWith(2, {
+      role: "responder",
+      text: "お電話ありがとうございます。",
+    });
   });
 
   test("start() rejects with the secure-context error over plain HTTP", async () => {
