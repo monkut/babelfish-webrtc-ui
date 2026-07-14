@@ -7,10 +7,20 @@ import { getAccessToken } from "../api/auth";
 export const SECURE_CONTEXT_ERROR =
   "Microphone needs a secure context. Open this page over HTTPS (https://192.168.1.25) rather than http.";
 
+// One finalized line of conversation text from the backend's `transcript`
+// DataChannel: caller = STT result, responder = the text handed to TTS
+// (greeting, disclosure, and each reply). Mirrors the backend's
+// TranscriptEvent model (conversations/definitions.py).
+export interface TranscriptEvent {
+  role: "caller" | "responder";
+  text: string;
+}
+
 export interface WebRTCSessionEvents {
   onLocalStream?: (stream: MediaStream) => void;
   onRemoteStream?: (stream: MediaStream) => void;
   onConnectionStateChange?: (state: RTCPeerConnectionState) => void;
+  onTranscript?: (event: TranscriptEvent) => void;
 }
 
 function waitForIceGathering(pc: RTCPeerConnection, timeoutMs = 2000): Promise<void> {
@@ -43,11 +53,43 @@ async function sendOffer(
   return res.json();
 }
 
+const TRANSCRIPT_CHANNEL_LABEL = "transcript";
+
+function parseTranscriptEvent(data: unknown): TranscriptEvent | null {
+  if (typeof data !== "string") return null;
+  try {
+    const parsed: unknown = JSON.parse(data);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "role" in parsed &&
+      "text" in parsed &&
+      (parsed.role === "caller" || parsed.role === "responder") &&
+      typeof parsed.text === "string"
+    ) {
+      return { role: parsed.role, text: parsed.text };
+    }
+  } catch {
+    // fall through — malformed frame is dropped below
+  }
+  return null;
+}
+
 function createPeerConnection(stream: MediaStream, events: WebRTCSessionEvents): RTCPeerConnection {
   const pc = new RTCPeerConnection({ iceServers: [] });
   stream.getTracks().forEach((track) => pc.addTrack(track, stream));
   pc.ontrack = (e) => e.streams[0] && events.onRemoteStream?.(e.streams[0]);
   pc.onconnectionstatechange = () => events.onConnectionStateChange?.(pc.connectionState);
+  // Backend-initiated DataChannels: `transcript` carries conversation text
+  // (this UI's transcript panel); other labels (`screener-actions`) are for
+  // the phone client and are ignored here.
+  pc.ondatachannel = (e) => {
+    if (e.channel.label !== TRANSCRIPT_CHANNEL_LABEL) return;
+    e.channel.onmessage = (msg) => {
+      const event = parseTranscriptEvent(msg.data);
+      if (event) events.onTranscript?.(event);
+    };
+  };
   return pc;
 }
 

@@ -1,7 +1,41 @@
 import { useRef, useEffect, useState } from "react";
-import { useWebRTC, type ConnectionState } from "../lib/webrtc/useWebRTC";
+import { useWebRTC, type ConnectionState, type TranscriptLine } from "../lib/webrtc/useWebRTC";
 import { fetchScenarios, type ScenarioSummary } from "../lib/api/scenarios";
 import { AudioVisualizer } from "./AudioVisualizer";
+
+function TranscriptPanel({ lines }: { lines: TranscriptLine[] }) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [lines]);
+
+  if (lines.length === 0) return null;
+
+  return (
+    <div className="w-full">
+      <p className="text-gray-500 text-xs mb-1">Transcript</p>
+      <div className="w-full max-h-64 overflow-y-auto rounded-lg bg-gray-900 border border-gray-700 p-3 flex flex-col gap-2">
+        {lines.map((line) => (
+          <div
+            key={line.id}
+            className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
+              line.role === "caller"
+                ? "self-end bg-green-900/60 text-green-100"
+                : "self-start bg-gray-800 text-gray-100"
+            }`}
+          >
+            <span className="block text-[10px] uppercase tracking-wide opacity-60">
+              {line.role === "caller" ? "Caller (STT)" : "Responder (TTS)"}
+            </span>
+            {line.text}
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+    </div>
+  );
+}
 
 function ConnectionButton({
   connectionState,
@@ -103,6 +137,20 @@ function StatusIndicator({ connectionState }: { connectionState: ConnectionState
   );
 }
 
+// Bind the remote MediaStream to a hidden <audio> element for playback.
+function useRemoteAudio(remoteStream: MediaStream | null) {
+  const ref = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    if (remoteStream && ref.current) {
+      ref.current.srcObject = remoteStream;
+      ref.current.play().catch(() => {});
+    }
+  }, [remoteStream]);
+
+  return ref;
+}
+
 function useScenarioList() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [selected, setSelected] = useState("");
@@ -120,21 +168,15 @@ function useScenarioList() {
 }
 
 export function Babelfish() {
-  const { connectionState, error, connect, disconnect, localStream, remoteStream } = useWebRTC();
-  const remoteAudioRef = useRef<HTMLAudioElement>(null);
+  const { connectionState, error, connect, disconnect, localStream, remoteStream, transcript } =
+    useWebRTC();
+  const remoteAudioRef = useRemoteAudio(remoteStream);
   const {
     scenarios,
     selected: selectedScenario,
     setSelected: setSelectedScenario,
     error: scenarioError,
   } = useScenarioList();
-
-  useEffect(() => {
-    if (remoteStream && remoteAudioRef.current) {
-      remoteAudioRef.current.srcObject = remoteStream;
-      remoteAudioRef.current.play().catch(() => {});
-    }
-  }, [remoteStream]);
 
   const isLive = connectionState === "connected" || connectionState === "connecting";
 
@@ -178,6 +220,7 @@ export function Babelfish() {
             <AudioVisualizer stream={remoteStream} isActive={connectionState === "connected"} />
           </div>
         </div>
+        <TranscriptPanel lines={transcript} />
         <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
       </div>
     </main>
