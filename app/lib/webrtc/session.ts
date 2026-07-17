@@ -7,6 +7,13 @@ import { getAccessToken } from "../api/auth";
 export const SECURE_CONTEXT_ERROR =
   "Microphone needs a secure context. Open this page over HTTPS (https://192.168.1.25) rather than http.";
 
+// The backend caps concurrent sessions (`MAX_CONCURRENT_SESSIONS`, issue #137);
+// for the phone screener it is 1, so a second caller gets `POST /offer` → 503.
+// Surface that as a plain "line busy" message rather than a raw status code —
+// it is expected and transient, not a fault the user can fix.
+export const LINE_IN_USE_ERROR =
+  "The line is in use — this phone screener handles one call at a time. Please try again in a moment.";
+
 // One finalized line of conversation text from the backend's `transcript`
 // DataChannel: caller = STT result, responder = the text handed to TTS
 // (greeting, disclosure, and each reply). Mirrors the backend's
@@ -49,6 +56,9 @@ async function sendOffer(
     // client's bound default. Omitted when no scenario was selected.
     body: JSON.stringify({ sdp, type: "offer", scenario_slug: scenarioSlug }),
   });
+  // 503 on /offer means the concurrent-session cap was hit (the only 503 this
+  // endpoint raises) — the line is busy. Everything else is a real error.
+  if (res.status === 503) throw new Error(LINE_IN_USE_ERROR);
   if (!res.ok) throw new Error(`Signaling server error: ${res.status}`);
   return res.json();
 }
