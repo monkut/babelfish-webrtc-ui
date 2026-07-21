@@ -204,6 +204,25 @@ describe("WebRTCSession", () => {
     await expect(session.start()).rejects.toThrow("Signaling server error: 502");
   });
 
+  test("start() surfaces the line-in-use message when the backend is at capacity (503)", async () => {
+    // MAX_CONCURRENT_SESSIONS=1 on the phone-screener line: a second caller's
+    // offer is rejected with 503, which must read as "line busy", not a raw code.
+    const fetchMock = vi.fn(async (url: string) =>
+      url.endsWith("/token")
+        ? jsonResponse({ access_token: "tok-1", expires_in: 3600 })
+        : jsonResponse({ error: "Server at capacity. Retry later." }, 503),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { stream } = makeFakeMic();
+    vi.stubGlobal("navigator", { mediaDevices: { getUserMedia: async () => stream } });
+    const { WebRTCSession, LINE_IN_USE_ERROR } = await importSession();
+    const session = new WebRTCSession(TEST_SIGNALING_URL);
+
+    await expect(session.start()).rejects.toThrow(LINE_IN_USE_ERROR);
+    // Distinct from the generic path — never a raw status code.
+    await expect(session.start()).rejects.not.toThrow("503");
+  });
+
   test("close() closes the peer connection and stops the mic tracks", async () => {
     stubFetchRoutes();
     const { stream, track } = makeFakeMic();
