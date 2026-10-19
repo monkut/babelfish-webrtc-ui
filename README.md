@@ -60,9 +60,9 @@ The app will be available at `http://localhost:5173`.
 7. Click the red **Disconnect** button to end the session
 
 > **Microphone requires a secure context.** Browsers expose the mic only over
-> HTTPS or `localhost`. On a plain-HTTP LAN origin (e.g. `http://192.168.1.25:8080`)
+> HTTPS or `localhost`. On a plain-HTTP LAN origin (e.g. `http://192.168.1.28:8080`)
 > Connect fails with a "secure context" message — use the HTTPS origin instead
-> (see [Deployment](#deployment-taichi-on-prem)).
+> (see [Deployment](#deployment-on-prem-dualgpus)).
 
 ## Development
 
@@ -167,12 +167,12 @@ VITE_SIGNALING_URL=http://localhost:8080/offer
 VITE_CLIENT_ID=dev-client
 VITE_CLIENT_SECRET=...
 
-# TAICHI on-prem (same-origin — VITE_SIGNALING_URL omitted on purpose):
+# on-prem (same-origin — VITE_SIGNALING_URL omitted on purpose):
 VITE_CLIENT_ID=babelfish-spa
 VITE_CLIENT_SECRET=...
 ```
 
-## Deployment (TAICHI on-prem)
+## Deployment (on-prem, dualgpus)
 
 The SPA is served by the backend's Caddy from `spa-dist/`. Caddy exposes two
 listeners on the same origin model: `:8080` HTTP (picker works, mic does not)
@@ -183,17 +183,17 @@ cd ~/PycharmProjects/babelfish-webrtc-ui
 # .env with VITE_CLIENT_ID/SECRET only (same-origin: no VITE_SIGNALING_URL)
 pnpm build
 # Source is build/client/ (React Router 7 SPA output), NOT build/.
-rsync -a --delete build/client/ shane.cousins@192.168.1.25:~/babelfish/backend/spa-dist/
-ssh shane.cousins@192.168.1.25 'cd ~/babelfish/backend && docker compose restart caddy'
+rsync -a --delete build/client/ shane.cousins@192.168.1.28:~/babelfish/backend/spa-dist/
+ssh shane.cousins@192.168.1.28 'cd ~/babelfish/backend && docker compose restart caddy'
 pnpm smoke:taichi
 ```
 
-**To use the microphone, browse `https://192.168.1.25`** and trust Caddy's
+**To use the microphone, browse `https://192.168.1.28`** and trust Caddy's
 internal root CA once per device (a page click-through is not enough — the
 SPA's `fetch` calls to the HTTPS API would otherwise fail the TLS handshake):
 
 ```bash
-ssh shane.cousins@192.168.1.25 'docker exec ford-caddy cat /data/caddy/pki/authorities/local/root.crt' > caddy-root.crt
+ssh shane.cousins@192.168.1.28 'docker exec ford-caddy cat /data/caddy/pki/authorities/local/root.crt' > caddy-root.crt
 # Linux (Chrome/Chromium NSS store):
 certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n "Caddy TAICHI" -i caddy-root.crt
 # macOS: Keychain → trust "Always". Windows: import to Trusted Root CAs.

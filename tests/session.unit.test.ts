@@ -184,7 +184,7 @@ describe("WebRTCSession", () => {
 
     await expect(session.start()).rejects.toThrow(SECURE_CONTEXT_ERROR);
     expect(SECURE_CONTEXT_ERROR).toBe(
-      "Microphone needs a secure context. Open this page over HTTPS (https://192.168.1.25) rather than http.",
+      "Microphone needs a secure context. Open this page over HTTPS (https://192.168.1.28) rather than http.",
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });

@@ -1,4 +1,4 @@
-// Smoke test for the TAICHI on-prem deployment.
+// Smoke test for the on-prem deployment (dualgpus since 2026-10-19; TAICHI_URL is the historical name).
 // Run with: node tests/taichi-deploy.smoke.mjs
 //
 // Verifies the deployed stack at TAICHI_URL is reachable end-to-end:
@@ -9,12 +9,12 @@
 //
 // getUserMedia / WebRTC handshake is intentionally not exercised here —
 // browsers refuse mic access on plain HTTP origins. Over the HTTPS listener
-// (https://192.168.1.25, internal CA) the mic works; that round-trip is
+// (https://192.168.1.28, internal CA) the mic works; that round-trip is
 // verified separately against a secure origin.
 
 import { chromium } from "playwright";
 
-const TAICHI_URL = process.env.TAICHI_URL || "http://192.168.1.25:8080";
+const TAICHI_URL = process.env.TAICHI_URL || "http://192.168.1.28:8080";
 // The SPA is same-origin: it builds the signaling URL from window.location at
 // runtime, so the bundle carries the relative "/api/offer" path, not a host.
 const EXPECTED_SIGNALING = "/api/offer";

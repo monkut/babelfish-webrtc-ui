@@ -5,7 +5,7 @@
 import { getAccessToken } from "../api/auth";
 
 export const SECURE_CONTEXT_ERROR =
-  "Microphone needs a secure context. Open this page over HTTPS (https://192.168.1.25) rather than http.";
+  "Microphone needs a secure context. Open this page over HTTPS (https://192.168.1.28) rather than http.";
 
 // The backend caps concurrent sessions (`MAX_CONCURRENT_SESSIONS`, issue #137);
 // for the phone screener it is 1, so a second caller gets `POST /offer` → 503.
