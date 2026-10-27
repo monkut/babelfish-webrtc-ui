@@ -188,11 +188,16 @@ ssh shane.cousins@192.168.1.28 'cd ~/babelfish/backend && docker compose restart
 pnpm smoke:taichi
 ```
 
-**To use the microphone, browse `https://192.168.1.28`** and trust Caddy's
-internal root CA once per device (a page click-through is not enough — the
-SPA's `fetch` calls to the HTTPS API would otherwise fail the TLS handshake):
+**To use the microphone, browse `https://192.168.1.28`.** Browsers do not
+know Caddy's internal CA, so accept the certificate warning once (Chrome/Edge:
+*Advanced → Proceed to 192.168.1.28*; Safari: *Show Details → visit this
+website*; Firefox: *Accept the Risk and Continue*). After that the page is a
+secure context: the mic and the same-origin `/api` fetches work (verified
+2026-10-22 with Chromium and an empty trust store). Trusting the root CA on a
+device only removes the warning:
 
 ```bash
+# Optional: export the root to trust it on a device.
 ssh shane.cousins@192.168.1.28 'docker exec ford-caddy cat /data/caddy/pki/authorities/local/root.crt' > caddy-root.crt
 # Linux (Chrome/Chromium NSS store):
 certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n "Caddy TAICHI" -i caddy-root.crt
